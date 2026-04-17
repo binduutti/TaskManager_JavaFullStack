@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager Dashboard</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; font-family: "Segoe UI", Tahoma, sans-serif; }
+        body { background:#f4f6f9; color: #333; }
+        header { background:#1f2937; color:white; padding:16px 30px; display:flex; justify-content:space-between; align-items:center; }
+        .logout-btn { background:#ef4444; border:none; padding:8px 14px; color:white; cursor:pointer; border-radius:4px; transition: 0.3s; }
+        .logout-btn:hover { background: #dc2626; }
+        .container { max-width:1200px; margin:auto; padding:30px; display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:20px; }
+        .card { background:white; padding:20px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+        .card h2 { margin-bottom:15px; font-size:18px; color:#374151; border-bottom: 2px solid #f3f4f6; padding-bottom: 8px; }
+        input { width:100%; padding:10px; margin-bottom:10px; border:1px solid #d1d5db; border-radius:5px; font-size:14px; }
+        button { background:#2563eb; color:white; border:none; padding:10px 14px; border-radius:5px; cursor:pointer; width: 100%; font-weight: 500; }
+        button:hover { background:#1e40af; }
+        table { width:100%; border-collapse:collapse; margin-top:10px; }
+        th, td { border-bottom:1px solid #e5e7eb; padding:12px 10px; text-align:left; font-size:14px; }
+        th { background:#f9fafb; font-weight: 600; }
+        .result { margin-top:10px; background:#f0fdf4; color: #166534; padding:10px; border-radius:5px; font-size:13px; display: none; }
+        .delete-btn { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; width: auto; padding: 5px 10px; }
+        .delete-btn:hover { background: #fca5a5; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Task Manager</h1>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+</header>
+
+<div class="container">
+
+    <div class="card">
+        <h2>Create Task</h2>
+        <input type="text" id="taskInput" placeholder="Enter task name...">
+        <button onclick="createTask()">Create Task</button>
+        <div id="createResult" class="result"></div>
+    </div>
+
+    <div class="card">
+        <h2>Retrieve One Task</h2>
+        <input type="number" id="getTaskId" placeholder="Enter Task ID">
+        <button onclick="getTask()">Get Task</button>
+        <div class="result" id="taskResult" style="display:block; background:#eff6ff; color:#1e40af; margin-top:15px; border: 1px solid #bfdbfe;">
+            Enter an ID to see details
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Delete Task</h2>
+        <input type="number" id="deleteTaskId" placeholder="Enter Task ID to delete">
+        <button style="background:#dc2626;" onclick="deleteTaskManual()">Delete Task</button>
+        <div id="deleteResult" class="result"></div>
+    </div>
+
+    <div class="card" style="grid-column: 1 / -1;">
+        <h2>All Your Tasks</h2>
+        <button style="margin-bottom:10px;" onclick="getAllTasks()">Get All Tasks</button>
+        <table id="taskTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Task Name</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+    const API_BASE = "http://localhost:8082/api";
+
+    const getToken = () => localStorage.getItem("token");
+    const getUserId = () => localStorage.getItem("userId");
+
+    // Initialize page
+    window.onload = () => {
+        if (!getToken() || !getUserId()) {
+            window.location.href = "login.html";
+        } 
+    };
+
+    /* 1. GET ALL TASKS */
+    async function getAllTasks() {
+        const userId = getUserId();
+        const token = getToken();
+
+        try {
+            const response = await fetch(`${API_BASE}/${userId}/tasks`, {
+                headers: { "Authorization": "Bearer " + token }
+            });
+
+            if (!response.ok) throw new Error("Could not fetch tasks");
+
+            const tasks = await response.json();
+            const tbody = document.querySelector("#taskTable tbody");
+            tbody.innerHTML = "";
+
+            tasks.forEach(t => {
+                const row = `<tr>
+                    <td><strong>#${t.id}</strong></td>
+                    <td>${t.taskname}</td>
+                    <td>
+                        <button class="delete-btn" onclick="deleteTaskById(${t.id})">Delete</button>
+                    </td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+        } catch (err) {
+            console.error("Fetch Error:", err);
+        }
+    }
+
+    /* 2. CREATE TASK */
+    async function createTask() {
+        const nameInput = document.getElementById("taskInput");
+        const userId = getUserId();
+        const token = getToken();
+
+        if (!nameInput.value.trim()) return alert("Please enter a name");
+
+        try {
+            const response = await fetch(`${API_BASE}/${userId}/tasks`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                },
+                body: JSON.stringify({ taskname: nameInput.value.trim() })
+            });
+
+            if(response.ok) {
+                nameInput.value = "";
+                showStatus("createResult", "✅ Task created!");
+                getAllTasks();
+            }
+        } catch (err) { alert("Create failed"); }
+    }
+
+    /* 3. RETRIEVE ONE TASK */
+    async function getTask() {
+        const taskId = document.getElementById("getTaskId").value;
+        const resultDiv = document.getElementById("taskResult");
+        const userId = getUserId();
+        const token = getToken();
+
+        if(!taskId) return alert("Enter an ID");
+
+        try {
+            const response = await fetch(`${API_BASE}/${userId}/tasks/${taskId}`, {
+                headers: { "Authorization": "Bearer " + token }
+            });
+            if(!response.ok) throw new Error();
+            const t = await response.json();
+            resultDiv.innerText = `Task ID: ${t.id} | Name: ${t.taskname}`;
+        } catch (err) { resultDiv.innerText = "❌ Task not found"; }
+    }
+
+    /* 4. DELETE TASK (FROM INPUT CARD) */
+    async function deleteTaskManual() {
+        const taskId = document.getElementById("deleteTaskId").value;
+        if(!taskId) return alert("Enter ID to delete");
+        await deleteTaskById(taskId, "deleteResult");
+        document.getElementById("deleteTaskId").value = "";
+    }
+
+    /* 5. DELETE TASK (CORE LOGIC) */
+    async function deleteTaskById(taskId, resultId = null) {
+        const userId = getUserId();
+        const token = getToken();
+
+        if(!confirm(`Delete Task #${taskId}?`)) return;
+
+        try {
+            const response = await fetch(`${API_BASE}/${userId}/tasks/${taskId}`, {
+                method: "DELETE",
+                headers: { "Authorization": "Bearer " + token }
+            });
+
+            if(response.ok) {
+                if(resultId) showStatus(resultId, "✅ Deleted successfully");
+                getAllTasks();
+            } else {
+                alert("Could not delete. Task might not exist.");
+            }
+        } catch (err) { alert("Delete failed"); }
+    }
+
+    /* UTILITY: SHOW TEMPORARY STATUS */
+    function showStatus(elementId, message) {
+        const el = document.getElementById(elementId);
+        el.innerText = message;
+        el.style.display = "block";
+        setTimeout(() => { el.style.display = "none"; }, 3000);
+    }
+
+    /* LOGOUT */
+    function logout() {
+        if (confirm("Are you sure you want to logout?")) {
+        localStorage.clear();
+        window.location.href = "login.html";
+    }
+    }
+</script>
+
+</body>
+</html>

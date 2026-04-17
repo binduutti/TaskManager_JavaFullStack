@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Your JWT Token</title>
+
+<style>
+body{
+font-family:Arial;
+background:#f3f4f6;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+}
+
+.box{
+background:white;
+padding:30px;
+border-radius:8px;
+width:600px;
+box-shadow:0 3px 10px rgba(0,0,0,0.1);
+}
+
+textarea{
+width:100%;
+height:120px;
+margin-top:10px;
+padding:10px;
+}
+
+button{
+margin-top:10px;
+padding:10px 15px;
+background:#2563eb;
+color:white;
+border:none;
+cursor:pointer;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="box">
+
+<h2>Your JWT Token</h2>
+
+<textarea id="tokenBox"></textarea>
+
+<button onclick="copyToken()">Copy Token</button>
+<button onclick="goDashboard()">Go To Dashboard</button>
+
+</div>
+
+<script>
+
+const token = localStorage.getItem("token");
+
+document.getElementById("tokenBox").value = token;
+
+function copyToken(){
+
+navigator.clipboard.writeText(token);
+
+alert("Token Copied!");
+
+}
+
+function goDashboard(){
+
+window.location.href="TaskManager.html";
+
+}
+
+</script>
+
+</body>
+</html>
